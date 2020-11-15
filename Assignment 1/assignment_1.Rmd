@@ -1,0 +1,334 @@
+---
+title: "Assignment 1"
+author: "Tom van de Looij - Mark Swaringen - Younes Moustaghfir, Group 30"
+date: "13th of September"
+output: 
+  pdf_document: 
+    latex_engine: xelatex
+    fig_width: 5
+    fig_height: 3
+fontsize: 11pt
+highlight: tango
+---
+
+```{r}
+library(fpp2)
+library(xlsx)
+library(seasonal)
+```
+
+## Exercise 1.3: Time series decomposition
+
+**a.1) **
+
+```{r}
+autoplot(plastics)
+```
+There seems to be an upwards trend when looking at the graph created by the autoplot function. Next to that, we see seasonal fluctuations as well.
+
+**a.2) **
+
+```{r}
+decomp <- decompose(plastics, type = "multiplicative")
+autoplot(decomp)
+```
+
+Yes, we see indeed that the decomposition shows a clear upwards line in the trend graph. Next to that, we see clear a clear seasonal pattern as well
+
+**a.3) **
+
+```{r}
+autoplot(plastics, series="Data") +
+  autolayer(trendcycle(decomp), series="Trend") +
+  autolayer(seasadj(decomp), series="Seasonally Adjusted") +
+  xlab("Year") + ylab("Monthly Sales amount") 
+  
+```
+
+**a.4) **
+
+```{r}
+plastics_new <- plastics
+plastics_new[50] <- plastics_new[50] + 500
+decomp_new <- decompose(plastics_new, type = "multiplicative")
+
+autoplot(plastics_new, series = "Data") +
+  autolayer(trendcycle(decomp_new),
+            series = "Trend") +
+  autolayer(seasadj(decomp_new),
+            series = "Seasonally Adjusted") +
+  xlab("Year") + 
+  ylab("Monthly Sales amount") +
+  ggtitle("Sales of plastic projuct with outlier")
+```
+
+The outlier affects the seasonality, creating a new peak and breaking the seasonality cycle at the end. For the trend, it does not do much damage, because the trend seems pretty much the same except for the outlier value(still an upwards trend).
+
+**a.5) **
+
+```{r}
+plastics_new <- plastics
+plastics_new[30] <- plastics_new[30] + 500
+decomp_new <- decompose(plastics_new, type = "multiplicative")
+
+autoplot(plastics_new, series = "Data") +
+  autolayer(trendcycle(decomp_new),
+            series = "Trend") +
+  autolayer(seasadj(decomp_new),
+            series = "Seasonally Adjusted") +
+  xlab("Year") + 
+  ylab("Monthly Sales amount") +
+  ggtitle("Sales of plastic projuct with outlier")
+```
+In the middle, the outlier seems to have a bigger effect on the seasonality, but the trend remains pretty much upwards.
+
+**b) **
+
+```{r}
+retail <- read.xlsx("retail.xlsx", 
+                    sheetIndex = 1,
+                    startRow = 2)
+
+
+ts_retail <- ts(retail[,"A3349873A"], 
+                frequency=12, 
+                start=c(1982,4))
+
+autoplot(ts_retail)
+
+x11_retail <- seas(ts_retail, x11 = "")
+autoplot(x11_retail)
+```
+It seems to show quite an outlier just past 2000. We see some other outliers around 1995 and 1989 as well. Next to that, it seems that the seasonality slighly decreases over time.
+
+**c.1) **
+
+```{r}
+autoplot(cangas)
+ggsubseriesplot(cangas)
+ggseasonplot(cangas)
+```
+There seems to be a slight decrease in February and the summer month, but an increase around the winter time again. This could be due to increase in gas demand at that point, due to the cold for example
+
+**c.2) **
+
+```{r}
+stl_cangas <- stl(cangas, s.window = "periodic", robust = TRUE)
+
+autoplot(stl_cangas) +
+  ggtitle("Monthly Canadian Gas Production",
+          subtitle = "STL decomposition")
+
+autoplot(cangas, series = "Data") +
+  autolayer(seasadj(stl_cangas), series = "Seasonally Adjusted") +
+  autolayer(trendcycle(stl_cangas), series = "Trend-cycle") +
+  ggtitle("Monthly Canadian gas production(STL decomposition)") +
+  ylab(expression(paste("Gas production"))) +
+  scale_color_manual(values = c("gray", "blue", "red"),
+                     breaks = c("Data", "Seasonally Adjusted", "Trend-cycle"))
+
+```
+**c.3) **
+
+```{r}
+x11_cangas <- seas(cangas, x11 = "")
+seats_cangas <- seas(cangas)
+
+
+autoplot(x11_cangas) +
+  ggtitle("Monthly Canadian Gas Production",
+          subtitle = "X11 decomposition")
+
+autoplot(cangas, series = "Data") +
+  autolayer(seasadj(x11_cangas), series = "Seasonally Adjusted") +
+  autolayer(trendcycle(x11_cangas), series = "Trend-cycle") +
+  ggtitle("Monthly Canadian gas production(X11 decomposition)") +
+  ylab(expression(paste("Gas production"))) +
+  scale_color_manual(values = c("gray", "blue", "red"),
+                     breaks = c("Data", "Seasonally Adjusted", "Trend-cycle"))
+
+autoplot(seats_cangas) +
+  ggtitle("Monthly Canadian Gas Production",
+          subtitle = "SEATS decomposition")
+
+autoplot(cangas, series = "Data") +
+  autolayer(seasadj(seats_cangas), series = "Seasonally Adjusted") +
+  autolayer(trendcycle(seats_cangas), series = "Trend-cycle") +
+  ggtitle("Monthly Canadian gas production(SEATS decomposition)") +
+  ylab(expression(paste("Gas production"))) +
+  scale_color_manual(values = c("gray", "blue", "red"),
+                     breaks = c("Data", "Seasonally Adjusted", "Trend-cycle"))
+```
+The mean for seasonal and remainder are around 1 for X11 and SEATS, for the STL we saw that to be around 0 instead. 
+
+**d) **
+
+```{r}
+autoplot(writing)
+
+stlf_writing <- stlf(writing, 
+                     s.window = 13, 
+                     robust = TRUE,
+                     lambda = BoxCox.lambda(writing),
+                     method = "rwdrift")
+autoplot(stlf_writing)
+```
+We see that there is an increasing trend in the writing data, so it would be better to use rwdrift to forecast.
+We applied a Box-CoX transformation with default values, in order to make the variance of the change due to seasonality equal per season.
+
+## Exercise 1.3: Exponential Smoothing
+
+**a.1) **
+
+```{r}
+plot(ukcars)
+```
+
+We clearly see seasonality within this series. We also first see a declining trend in the data up until around 1983, which is followed by a increasing trend afterwards. Around 2000 we see a slight drop.
+
+**a.2) **
+
+```{r}
+stl_cars <- stl(ukcars, s.window = "periodic", robust = TRUE)
+
+seasonal <- stl_cars$time.series[,1]
+cars_sa <- ukcars - seasonal
+```
+
+**a.3) **
+
+```{r}
+stlf_ets_ukcars <- ukcars %>% stlf(h = 8, etsmodel = "AAN", damped = TRUE)
+autoplot(stlf_ets_ukcars)
+```
+**a.4) **
+
+```{r}
+stlf_ets_ukcars_holt <- ukcars %>% stlf(h = 8, etsmodel = "AAN", damped = FALSE)
+autoplot(stlf_ets_ukcars_holt)
+```
+
+**a.5) **
+
+```{r}
+ets_ukcars <- ets(ukcars)
+summary(ets_ukcars)
+
+autoplot(forecast(ets_ukcars, h = 8))
+```
+
+**a.6) **
+
+```{r}
+print("Accuracy of stlf model")
+accuracy(stlf_ets_ukcars)
+print("Accuracy of stlf holt model")
+accuracy(stlf_ets_ukcars_holt)
+print("Accuracy of ETS(A, N, A) model")
+accuracy(ets_ukcars)
+```
+
+Using the Holt’s linear method for the seasonally adjusted data resulted in the best model.
+
+**a.7) **
+
+Based on for example the RMSE, the answer would be same as for a.6.
+
+**a.8) **
+
+```{r}
+checkresiduals(stlf_ets_ukcars_holt)
+```
+
+First we notice that the residuals seem not be fully normally distributed. When looking at the ACF plot, we also see some autocorrelation. 
+
+**b.1) **
+```{r}
+autoplot(visitors)
+ggseasonplot(visitors)
+```
+
+The data contains an increasing trend over time, with seasonality clearly visible. There also seems to be an outlier (or decrease) in 2003.
+
+**b.2) **
+
+```{r}
+train <- subset(visitors, end = length(visitors) - 24)
+test <- subset(visitors, start = length(visitors) - 23)
+hw_mul_visitors_train <- hw(train,
+                            h = 24,
+                            seasonal = "multiplicative")
+
+```
+
+**b.3) **
+```{r}
+autoplot(hw_mul_visitors_train)
+```
+
+We can see that the variance of the seasonality increased over time, next to the fact that the amount of visitors increased. Multiplicative can handle that, but additive seasonality not.
+
+**b.4) **
+
+```{r}
+# b.4.1
+ets_visitor_train <- forecast(ets(train), h = 24)
+autoplot(ets_visitor_train)
+
+# b.4.2
+ets_boxcox_visitor_train <- forecast(
+  ets(train, 
+      lambda = BoxCox.lambda(train),
+      additive.only = TRUE),
+  h = 24
+)
+autoplot(ets_boxcox_visitor_train)
+
+# b.4.3
+snaive_visitor_train <- snaive(train, h = 24)
+autoplot(snaive_visitor_train)
+
+# b.4.4
+boxcox_stl_ets_visitors_train <- train %>%
+  stlm(
+    lambda = BoxCox.lambda(train),
+    s.window = 13,
+    robust = TRUE,
+    method = "ets"
+  ) %>%
+  forecast(h = 24)
+autoplot(boxcox_stl_ets_visitors_train)
+```
+
+**b.5) **
+```{r}
+accuracy(hw_mul_visitors_train, test)
+accuracy(ets_visitor_train, test)
+accuracy(ets_boxcox_visitor_train, test)
+accuracy(snaive_visitor_train, test)
+accuracy(boxcox_stl_ets_visitors_train, test)
+
+checkresiduals(boxcox_stl_ets_visitors_train)
+checkresiduals(snaive_visitor_train)
+
+```
+The STL decomposition applied to the Box-Cox transformed data followed by an ETS model applied to the seasonally adjusted data seems to be the best model when it comes to the training data, but if we look at the test set, we see that the seasonal naive model is best according to the RMSE. The ETS model seems to pass the residuals check, but the seasonal naive does not.
+
+**b.6) **
+
+```{r}
+
+forecastfunction_boxcox = function(x, h) forecast(ets(x, lambda = BoxCox.lambda(x), additive.only = TRUE), h = h)
+
+forecastfunction_stlm = function(x, h) forecast(stlm(x, lambda = BoxCox.lambda(x), s.window = frequency(x) + 1, robust = TRUE, method="ets"), h=h)
+
+forecastfunction_ets = function(x, h) forecast(ets(x), h=h)
+
+sqrt(mean(tsCV(visitors, snaive, h = 1)^2, na.rm = TRUE))
+sqrt(mean(tsCV(visitors, forecastfunction_boxcox, h = 1)^2, na.rm = TRUE))
+sqrt(mean(tsCV(visitors, forecastfunction_stlm, h = 1)^2, na.rm = TRUE))
+sqrt(mean(tsCV(visitors, forecastfunction_ets, h = 1)^2, na.rm = TRUE))
+sqrt(mean(tsCV(visitors, hw, h = 1, seasonal = "multiplicative")^2, na.rm = TRUE))
+```
+
+In this case, the STL followed by ETS seems to be the best model here, based on the RSME, as we've also seen when checking the score for the training data.
